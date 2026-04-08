@@ -1,92 +1,70 @@
-// Supabase Edge Function: delete-user
-// Deletes a user from auth.users (requires service role + super admin caller)
-// Deploy with: supabase functions deploy delete-user
-
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
-
-// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase runtime
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const respond = (data: unknown, status = 200) =>
+    new Response(JSON.stringify(data), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   try {
-    // 1. Verify caller has a valid JWT
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return json({ error: 'Unauthorized — missing token' }, 401);
-    }
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) return respond({ error: 'Missing authorization header' }, 401);
 
-    const callerToken = authHeader.replace('Bearer ', '');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Use service role admin client — can verify any JWT and bypass RLS
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    // Verify calling user with their own token (uses anon key + JWT)
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify the caller's JWT
-    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(callerToken);
-    if (authError || !caller) {
-      return json({ error: 'Unauthorized — invalid token' }, 401);
-    }
+    const { data: { user }, error: authError } = await callerClient.auth.getUser();
+    if (authError || !user) return respond({ error: 'Unauthorized' }, 401);
 
-    // 2. Verify caller is super admin (use service role to bypass RLS)
-    const { data: callerProfile, error: profileError } = await supabaseAdmin
+    // Check caller is super admin
+    const { data: profile } = await callerClient
       .from('profiles')
       .select('is_super_admin')
-      .eq('id', caller.id)
+      .eq('id', user.id)
       .single();
 
-    if (profileError || !callerProfile?.is_super_admin) {
-      return json({ error: 'Forbidden — super admin only' }, 403);
-    }
+    if (!profile?.is_super_admin) return respond({ error: 'Forbidden — admin only' }, 403);
 
-    // 3. Parse and validate body
-    let body: { userId?: string };
+    // Parse body
+    let userId: string;
     try {
-      body = await req.json();
+      const body = await req.json();
+      userId = body.userId;
     } catch {
-      return json({ error: 'Invalid JSON body' }, 400);
+      return respond({ error: 'Invalid JSON body' }, 400);
     }
 
-    const { userId } = body;
-    if (!userId || typeof userId !== 'string') {
-      return json({ error: 'Missing or invalid userId' }, 400);
-    }
+    if (!userId) return respond({ error: 'userId is required' }, 400);
+    if (userId === user.id) return respond({ error: 'Cannot delete your own account' }, 400);
 
-    // Prevent self-deletion
-    if (userId === caller.id) {
-      return json({ error: 'Cannot delete your own account via admin panel' }, 400);
-    }
+    // Delete with service role
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+    if (deleteError) return respond({ error: deleteError.message }, 400);
 
-    // 4. Use the same service role client to delete
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (deleteError) {
-      console.error('[delete-user] Delete error:', deleteError);
-      return json({ error: deleteError.message }, 400);
-    }
-
-    console.log(`[delete-user] User ${userId} deleted by admin ${caller.id}`);
-    return json({ success: true, message: 'User deleted successfully' });
+    return respond({ success: true });
 
   } catch (err) {
-    console.error('[delete-user] Unexpected error:', err);
-    return json({ error: err instanceof Error ? err.message : 'Internal server error' }, 500);
+    console.error('[delete-user]', err);
+    return respond({ error: 'Internal server error' }, 500);
   }
 });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, FolderOpen, Activity, AlertTriangle, Settings, BarChart3, UserPlus, Eye, Ban, Trash2, ShieldOff } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, invokeFunction } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../hooks/useRealtime';
 import { logActivity } from '../lib/activityLogger';
@@ -114,14 +114,8 @@ export default function AdminPanel() {
     if (!userToDelete) return;
     
     try {
-      // Call delete-user Edge Function
-      const { data, error } = await supabase.functions.invoke('delete-user', {
-        body: { userId: userToDelete.id }
-      });
-      
-      if (error || !data?.success) {
-        throw new Error(error?.message || 'Failed to delete user');
-      }
+      const data = await invokeFunction('delete-user', { userId: userToDelete.id });
+      if (!data?.success) throw new Error('Failed to delete user');
       
       // Remove from project_members
       await supabase.from('project_members').delete().eq('user_id', userToDelete.id);

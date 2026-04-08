@@ -21,6 +21,20 @@ export function useInbox(userId) {
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      }, () => { fetchNotifications(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [userId, fetchNotifications]);
+
   async function markAsRead(id) {
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);
     await fetchNotifications();

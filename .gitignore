@@ -1,3 +1,7 @@
+# Temp output files
+*.txt
+!README.md
+
 # Logs
 logs
 *.log

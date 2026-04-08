@@ -2,7 +2,7 @@
 // All emails use dark teal theme with mint accent (#00E0C0)
 // Sent via Supabase Edge Functions (keys are server-side)
 
-import { supabase } from './supabase';
+import { supabase, invokeFunction } from './supabase';
 
 const APP_NAME = 'Just Why Team';
 const APP_URL = 'https://team.justwhyus.com';
@@ -340,10 +340,7 @@ async function _generateAndStoreOTP(supabase, { userId, email, type }) {
  */
 export async function sendInviteEmail({ toEmail, inviteLink, invitedBy }) {
   try {
-    const { data, error } = await supabase.functions.invoke('send-invite-email', {
-      body: { to: toEmail, inviteLink, invitedBy },
-    });
-    if (error) throw error;
+    const data = await invokeFunction('send-invite-email', { to: toEmail, inviteLink, invitedBy });
     return { success: true, data };
   } catch (error) {
     return { success: false, error: error.message };
@@ -357,15 +354,12 @@ export async function sendInviteEmail({ toEmail, inviteLink, invitedBy }) {
 export async function sendVerificationCodeEmail({ toEmail, username, userId }) {
   const code = await _generateAndStoreOTP({ userId, email: toEmail, type: 'verify' });
   const emailData = generateVerificationCodeEmail({ code, username });
-  const { data, error } = await supabase.functions.invoke('send-email', {
-    body: {
-      to: toEmail,
-      subject: emailData.subject,
-      html: emailData.html,
-      text: emailData.text,
-    },
+  const data = await invokeFunction('send-email', {
+    to: toEmail,
+    subject: emailData.subject,
+    html: emailData.html,
+    text: emailData.text,
   });
-  if (error) throw error;
   return { ...data, code };
 }
 
@@ -377,15 +371,12 @@ export async function sendPasswordResetEmail({ toEmail, username, userId }) {
   try {
     const code = await _generateAndStoreOTP({ userId, email: toEmail, type: 'reset' });
     const emailData = generatePasswordResetEmail({ code, username: username || toEmail.split('@')[0] });
-    const { data, error } = await supabase.functions.invoke('send-otp-email', {
-      body: {
-        to: toEmail,
-        subject: emailData.subject,
-        html: emailData.html,
-        text: emailData.text,
-      },
+    const data = await invokeFunction('send-otp-email', {
+      to: toEmail,
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
     });
-    if (error) throw error;
     return { ...data, code };
   } catch (error) {
     throw error;
@@ -399,16 +390,12 @@ export async function sendOTPEmail({ toEmail, code, username, type }) {
   const emailData = type === 'reset'
     ? generatePasswordResetEmail({ code, username })
     : generateVerificationCodeEmail({ code, username });
-  const { data, error } = await supabase.functions.invoke('send-email', {
-    body: {
-      to: toEmail,
-      subject: emailData.subject,
-      html: emailData.html,
-      text: emailData.text,
-    },
+  return invokeFunction('send-email', {
+    to: toEmail,
+    subject: emailData.subject,
+    html: emailData.html,
+    text: emailData.text,
   });
-  if (error) throw error;
-  return data;
 }
 
 /**
@@ -451,22 +438,14 @@ export async function generateAndStoreOTP({ userId, email, type }) {
  * Delete user via Edge Function (requires admin privileges)
  */
 export async function deleteUser(userId) {
-  const { data, error } = await supabase.functions.invoke('delete-user', {
-    body: { userId },
-  });
-  if (error) throw error;
-  return data;
+  return invokeFunction('delete-user', { userId });
 }
 
 /**
  * Reset password via Edge Function
  */
 export async function resetPassword(userId, newPassword) {
-  const { data, error } = await supabase.functions.invoke('reset-password', {
-    body: { userId, newPassword },
-  });
-  if (error) throw error;
-  return data;
+  return invokeFunction('reset-password', { userId, newPassword });
 }
 
 export { APP_NAME, APP_URL, SENDER_EMAIL };

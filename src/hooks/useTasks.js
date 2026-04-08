@@ -20,6 +20,20 @@ export function useTasks(projectId, userId) {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
+  useEffect(() => {
+    if (!projectId) return;
+    const channel = supabase
+      .channel(`tasks-${projectId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'tasks',
+        filter: `project_id=eq.${projectId}`,
+      }, () => { fetchTasks(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [projectId, fetchTasks]);
+
   async function createTask(task) {
     const { data, error } = await supabase
       .from('tasks')
