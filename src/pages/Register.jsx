@@ -126,12 +126,20 @@ export default function Register() {
     );
   }
 
+  const isValidUsername = (val) => /^[a-zA-Z0-9._]+$/.test(val) && val.length >= 3;
+  const usernameError = username && !isValidUsername(username) ? 'Username: 3+ chars, letters/numbers/dots/underscores only, no spaces' : null;
+
   const steps = [
     <div key="username" className="space-y-4">
-      <Input label="Pick your username" value={username} onChange={e => setUsername(e.target.value)} placeholder="e.g. john" required />
-      {usernameAvailable === false && <p className="text-[11px]" style={{ color: 'var(--status-overdue)' }}>Username taken</p>}
-      {usernameAvailable === true && <p className="text-[11px]" style={{ color: 'var(--status-done)' }}>Available!</p>}
-      <Button className="w-full" disabled={!username || usernameAvailable === false} onClick={() => setStep(1)}>Next</Button>
+      <Input label="Pick your username" value={username} onChange={e => setUsername(e.target.value)} 
+        placeholder="e.g. john_doe" 
+        pattern="^[a-zA-Z0-9._]+$"
+        title="3+ characters. Letters, numbers, dots (.) and underscores (_) only. No spaces."
+        required />
+      {usernameError && <p className="text-[11px]" style={{ color: 'var(--status-overdue)' }}>{usernameError}</p>}
+      {usernameAvailable === false && !usernameError && <p className="text-[11px]" style={{ color: 'var(--status-overdue)' }}>Username taken</p>}
+      {usernameAvailable === true && !usernameError && <p className="text-[11px]" style={{ color: 'var(--status-done)' }}>Available!</p>}
+      <Button className="w-full" disabled={!username || usernameAvailable === false || usernameError} onClick={() => setStep(1)}>Next</Button>
     </div>,
     <div key="email" className="space-y-4">
       <Input label="Your email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@gmail.com" required />

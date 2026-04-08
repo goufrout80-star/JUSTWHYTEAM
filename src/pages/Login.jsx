@@ -136,9 +136,12 @@ export default function Login() {
             )}
 
             <Input label="Username or Email" type="text" value={identifier}
-              onChange={e => setIdentifier(e.target.value)} placeholder="abdu or abdu@justwhyus.com" required />
+              onChange={e => setIdentifier(e.target.value)} placeholder="Enter your username or email" 
+              pattern="^[a-zA-Z0-9._]*$"
+              title="Username can only contain letters, numbers, dots (.) and underscores (_) - no spaces"
+              required />
             <Input label="Password" type="password" value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
+              onChange={e => setPassword(e.target.value)} placeholder="Enter your password" required />
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign in'}

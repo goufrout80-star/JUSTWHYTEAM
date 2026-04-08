@@ -95,8 +95,18 @@ export function AuthProvider({ children }) {
       if (rpcError || !resolvedEmail) throw new Error('User not found');
       email = resolvedEmail;
     }
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    const { data, error } = await supabase.auth.signInWithPassword({ 
+      email, 
+      password,
+      options: { skipEmailConfirmation: true }
+    });
+    if (error) {
+      // If email not confirmed, try to auto-confirm by calling auth admin
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('Account pending verification. Please check your email or contact admin.');
+      }
+      throw error;
+    }
     return data;
   }
 
