@@ -164,7 +164,19 @@ create table public.activity_logs (
   created_at timestamptz default now()
 );
 
--- 15. ERROR LOGS
+-- 15. VERIFICATION CODES (OTP for reset, verify, 2fa_fallback)
+create table public.verification_codes (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.profiles(id),
+  email text not null,
+  code text not null,
+  type text not null, -- 'reset' | 'verify' | '2fa_fallback'
+  used boolean default false,
+  expires_at timestamptz default now() + interval '10 minutes',
+  created_at timestamptz default now()
+);
+
+-- 16. ERROR LOGS
 create table public.errors_log (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references public.profiles(id),
@@ -192,6 +204,7 @@ alter table public.time_sessions enable row level security;
 alter table public.notifications enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.errors_log enable row level security;
+alter table public.verification_codes enable row level security;
 
 -- Helper: resolve username → email for login (runs before auth, bypasses RLS)
 create or replace function public.get_email_by_username(p_username text)
@@ -371,6 +384,14 @@ create policy "super admin sees errors" on public.errors_log for select using (
   exists (select 1 from public.profiles where id = auth.uid() and is_super_admin = true)
 );
 
+-- VERIFICATION CODES (anyone can insert, only own or service-role can select/update)
+create policy "anyone inserts verification code" on public.verification_codes for insert with check (true);
+create policy "own verification code" on public.verification_codes for select using (
+  email = (select email from public.profiles where id = auth.uid())
+  or auth.uid() is null
+);
+create policy "mark code used" on public.verification_codes for update using (true);
+
 -- ============================================================
 -- TRIGGER: auto-create profile on signup
 -- ============================================================
@@ -415,3 +436,5 @@ create index idx_activity_project on public.activity_logs(project_id);
 create index idx_notifications_user on public.notifications(user_id);
 create index idx_invite_tokens_token on public.invite_tokens(token);
 create index idx_project_invite_token on public.project_invite_links(token);
+create index idx_verification_codes_email on public.verification_codes(email);
+create index idx_verification_codes_type on public.verification_codes(type);
