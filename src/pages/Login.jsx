@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { logActivity } from '../lib/activityLogger';
@@ -140,8 +140,21 @@ export default function Login() {
               pattern="^[a-zA-Z0-9._]*$"
               title="Username can only contain letters, numbers, dots (.) and underscores (_) - no spaces"
               required />
-            <Input label="Password" type="password" value={password}
-              onChange={e => setPassword(e.target.value)} placeholder="Enter your password" required />
+            <div className="space-y-1">
+              <Input label="Password" type="password" value={password}
+                onChange={e => setPassword(e.target.value)} placeholder="Enter your password" required />
+              <div className="flex justify-end">
+                <Link 
+                  to="/forgot-password" 
+                  className="text-[11px] transition-colors"
+                  style={{ color: 'var(--text-hint)' }}
+                  onMouseEnter={e => e.target.style.color = 'var(--text-accent)'}
+                  onMouseLeave={e => e.target.style.color = 'var(--text-hint)'}
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign in'}

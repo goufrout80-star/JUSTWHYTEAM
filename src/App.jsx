@@ -3,6 +3,8 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import ProjectDetail from './pages/ProjectDetail';
 import MyWork from './pages/MyWork';
@@ -18,6 +20,8 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register/:token" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-2fa" element={<ProtectedRoute><VerifyTwoFA /></ProtectedRoute>} />
       <Route path="/join/:token" element={<JoinProject />} />
 

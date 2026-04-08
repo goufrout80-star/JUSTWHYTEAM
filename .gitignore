@@ -17,6 +17,11 @@ dist-ssr
 scripts/seed.js
 scripts/setup-db.js
 
+# Supabase (server-side Deno functions - separate from frontend build)
+supabase/.temp
+supabase/functions/**/deno.lock
+supabase/functions
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
