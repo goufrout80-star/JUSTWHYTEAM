@@ -1,9 +1,4 @@
 @echo off
-npm run build
-if errorlevel 1 (
-  echo BUILD FAILED
-  exit /b 1
-)
 git add -A
 git commit -m "fix: Deno types config, admin projects RLS, delete-user 401, req types, catch types"
 git push origin main

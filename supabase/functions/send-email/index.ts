@@ -20,7 +20,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -76,11 +76,12 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to send email';
     console.error('Error sending email:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to send email' 
+        error: message
       }),
       { 
         status: 500, 
