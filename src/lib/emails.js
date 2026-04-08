@@ -18,11 +18,17 @@ const COLORS = {
   success: '#2ECC71'
 };
 
-// Geometric logo SVG (two overlapping triangles)
-const logoSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+// Logo: hosted image (for email clients that block inline SVG)
+// Triangle mark: simple inline SVG used as decorative accent beside the logo
+const logoMark = `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M16 4L28 28H4L16 4Z" fill="#00E0C0" fill-opacity="0.35"/>
   <path d="M16 10L24 26H8L16 10Z" fill="#00E0C0"/>
 </svg>`;
+
+// Full logo header block: hosted logo.svg image + triangle mark + app name text
+const logoSvg = `
+  <img src="${APP_URL}/logo.svg" width="40" height="40" alt="Just Why Team" style="display:inline-block;vertical-align:middle;border:0">
+  ${logoMark}`;
 
 // Email wrapper with brand styling
 const emailWrapper = (content, subject) => `
@@ -57,13 +63,15 @@ const emailWrapper = (content, subject) => `
     .logo {
       display: inline-flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
+    .logo img { display: inline-block; vertical-align: middle; }
     .logo-text {
       font-size: 20px;
-      font-weight: 600;
+      font-weight: 700;
       color: ${COLORS.accent};
       letter-spacing: -0.5px;
+      vertical-align: middle;
     }
     .content {
       padding: 40px 32px;

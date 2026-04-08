@@ -14,10 +14,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const logoSvg = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M16 4L28 28H4L16 4Z" fill="#00E0C0" fill-opacity="0.35"/>
-  <path d="M16 10L24 26H8L16 10Z" fill="#00E0C0"/>
-</svg>`;
+const logoMark = `<svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 4L28 28H4L16 4Z" fill="#00E0C0" fill-opacity="0.35"/><path d="M16 10L24 26H8L16 10Z" fill="#00E0C0"/></svg>`;
+const logoSvg = `<img src="${APP_URL}/logo.svg" width="38" height="38" alt="Just Why Team" style="display:inline-block;vertical-align:middle;border:0"> ${logoMark}`;
 
 function generateInviteHtml(inviteLink: string, invitedBy: string): string {
   return `<!DOCTYPE html>
@@ -46,7 +44,7 @@ function generateInviteHtml(inviteLink: string, invitedBy: string): string {
 </head>
 <body>
   <div class="wrapper">
-    <div class="header">
+    <div class="header" style="display:flex;align-items:center;justify-content:center;gap:10px">
       ${logoSvg}
       <span class="logo-text">${SENDER_NAME}</span>
     </div>
