@@ -5,9 +5,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
 
-// These are auto-injected by Supabase at runtime — do NOT set them as secrets
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected by Supabase runtime
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
@@ -36,20 +35,19 @@ serve(async (req) => {
 
     const callerToken = authHeader.replace('Bearer ', '');
 
-    // Create a caller-context client (anon key + user JWT)
-    const supabaseCaller = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${callerToken}` } },
+    // Use service role admin client — can verify any JWT and bypass RLS
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Verify the JWT and get calling user
-    const { data: { user: caller }, error: authError } = await supabaseCaller.auth.getUser();
+    // Verify the caller's JWT
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(callerToken);
     if (authError || !caller) {
       return json({ error: 'Unauthorized — invalid token' }, 401);
     }
 
-    // 2. Verify caller is super admin
-    const { data: callerProfile, error: profileError } = await supabaseCaller
+    // 2. Verify caller is super admin (use service role to bypass RLS)
+    const { data: callerProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('is_super_admin')
       .eq('id', caller.id)
@@ -77,11 +75,7 @@ serve(async (req) => {
       return json({ error: 'Cannot delete your own account via admin panel' }, 400);
     }
 
-    // 4. Use service role to delete
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
+    // 4. Use the same service role client to delete
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
     if (deleteError) {
       console.error('[delete-user] Delete error:', deleteError);

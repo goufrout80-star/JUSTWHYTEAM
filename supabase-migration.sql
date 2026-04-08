@@ -270,7 +270,7 @@ create policy "owner deletes project" on public.projects for delete using (
 
 -- PROJECT MEMBERS
 create policy "members see members" on public.project_members for select using (
-  exists (select 1 from public.project_members pm where pm.project_id = project_id and pm.user_id = auth.uid())
+  exists (select 1 from public.project_members pm where pm.project_id = public.project_members.project_id and pm.user_id = auth.uid())
   or exists (select 1 from public.profiles where id = auth.uid() and is_super_admin = true)
 );
 create policy "auth users insert membership" on public.project_members for insert with check (true);
