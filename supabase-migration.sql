@@ -17,6 +17,7 @@ create table public.profiles (
   two_factor_enabled boolean default false,
   two_factor_secret text,
   must_change_password boolean default true,
+  banned boolean default false,
   is_impersonating uuid references public.profiles(id),
   created_at timestamptz default now()
 );

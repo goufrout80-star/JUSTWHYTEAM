@@ -3,7 +3,7 @@ import { Copy, Check, Mail, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { logActivity } from '../../lib/activityLogger';
-import { sendInviteEmail, APP_URL, APP_NAME } from '../../lib/email';
+import { sendInviteEmail, APP_URL, APP_NAME } from '../../lib/emails';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 
