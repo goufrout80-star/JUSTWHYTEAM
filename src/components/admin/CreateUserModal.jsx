@@ -3,8 +3,7 @@ import { Copy, Check, Mail, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { logActivity } from '../../lib/activityLogger';
-import { sendInviteEmail } from '../../lib/emailService';
-import { APP_NAME } from '../../lib/constants';
+import { sendInviteEmail, APP_URL, APP_NAME } from '../../lib/email';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 
@@ -32,14 +31,14 @@ export default function CreateUserModal({ onClose }) {
         .select()
         .single();
       if (err) throw err;
-      const base = window.location.origin;
-      const link = `${base}/register/${data.token}`;
+      // Use APP_URL from env (production URL, not localhost)
+      const link = `${APP_URL}/register/${data.token}`;
       setInviteLink(link);
       await logActivity(profile.id, null, 'invite_user', { username_hint: username, target_email: email || null });
       
       // Auto-send email if provided (email not stored in DB, just used for sending)
       if (email) {
-        await handleSendEmail(link);
+        await handleSendEmailInternal(link);
       }
     } catch (err) {
       setError(err.message);
@@ -48,7 +47,7 @@ export default function CreateUserModal({ onClose }) {
     }
   }
 
-  async function handleSendEmail(link) {
+  async function handleSendEmailInternal(link) {
     if (!email) {
       setEmailError('Please enter an email address');
       return;
@@ -56,11 +55,15 @@ export default function CreateUserModal({ onClose }) {
     setSendingEmail(true);
     setEmailError('');
     try {
-      const result = await sendInviteEmail(email, link, profile.username);
+      const result = await sendInviteEmail({ 
+        toEmail: email, 
+        inviteLink: link, 
+        invitedBy: profile.username 
+      });
       if (result.success) {
         setEmailSent(true);
       } else {
-        setEmailError('Failed to send email. You can still share the link manually.');
+        setEmailError(result.error || 'Failed to send email. You can still share the link manually.');
       }
     } catch (err) {
       setEmailError('Email service temporarily unavailable. Share the link manually.');

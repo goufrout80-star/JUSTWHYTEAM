@@ -20,7 +20,8 @@ scripts/setup-db.js
 # Supabase (server-side Deno functions - separate from frontend build)
 supabase/.temp
 supabase/functions/**/deno.lock
-supabase/functions
+# Keep delete-user function for admin panel
+!supabase/functions/delete-user
 
 # Editor directories and files
 .vscode/*

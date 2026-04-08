@@ -101,12 +101,26 @@ export function AuthProvider({ children }) {
       options: { skipEmailConfirmation: true }
     });
     if (error) {
-      // If email not confirmed, try to auto-confirm by calling auth admin
       if (error.message.includes('Email not confirmed')) {
         throw new Error('Account pending verification. Please check your email or contact admin.');
       }
       throw error;
     }
+    
+    // Check if user is banned
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('banned, username')
+        .eq('id', data.user.id)
+        .single();
+      
+      if (profile?.banned) {
+        await supabase.auth.signOut();
+        throw new Error('Your account has been suspended. Contact support@justwhyus.com');
+      }
+    }
+    
     return data;
   }
 

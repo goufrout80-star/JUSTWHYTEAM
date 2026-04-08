@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, FolderOpen, Activity, AlertTriangle, Settings, BarChart3, UserPlus, Eye } from 'lucide-react';
+import { Users, FolderOpen, Activity, AlertTriangle, Settings, BarChart3, UserPlus, Eye, Ban, Trash2, ShieldOff } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../hooks/useRealtime';
+import { logActivity } from '../lib/activityLogger';
 import Card from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
@@ -34,6 +35,8 @@ export default function AdminPanel() {
   const [errorLogs, setErrorLogs] = useState([]);
   const [stats, setStats] = useState({ totalUsers: 0, totalProjects: 0, errorsToday: 0 });
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   useEffect(() => {
     if (!isSuperAdmin) { navigate('/dashboard'); return; }
@@ -80,6 +83,62 @@ export default function AdminPanel() {
     await startImpersonating(user.id);
     toast(`Now impersonating ${user.username}`, 'warning');
     navigate('/dashboard');
+  }
+
+  async function handleBan(user, banStatus) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ banned: banStatus })
+      .eq('id', user.id);
+    
+    if (error) {
+      toast(`Failed to ${banStatus ? 'ban' : 'unban'} user`, 'error');
+      return;
+    }
+    
+    await logActivity(profile.id, null, banStatus ? 'user_banned' : 'user_unbanned', { 
+      target_user_id: user.id, 
+      username: user.username 
+    });
+    
+    toast(`${user.username} has been ${banStatus ? 'banned' : 'unbanned'}`);
+    fetchAll();
+  }
+
+  function confirmDelete(user) {
+    setUserToDelete(user);
+    setShowDeleteConfirm(true);
+  }
+
+  async function handleDelete() {
+    if (!userToDelete) return;
+    
+    try {
+      // Call delete-user Edge Function
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId: userToDelete.id }
+      });
+      
+      if (error || !data?.success) {
+        throw new Error(error?.message || 'Failed to delete user');
+      }
+      
+      // Remove from project_members
+      await supabase.from('project_members').delete().eq('user_id', userToDelete.id);
+      
+      // Log the deletion
+      await logActivity(profile.id, null, 'user_deleted', { 
+        target_user_id: userToDelete.id, 
+        username: userToDelete.username 
+      });
+      
+      toast(`${userToDelete.username} has been permanently deleted`);
+      setShowDeleteConfirm(false);
+      setUserToDelete(null);
+      fetchAll();
+    } catch (err) {
+      toast(`Failed to delete user: ${err.message}`, 'error');
+    }
   }
 
   if (!isSuperAdmin) return null;
@@ -130,24 +189,41 @@ export default function AdminPanel() {
                   <div className="flex items-center gap-3">
                     <Avatar username={u.username} />
                     <div>
-                      <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{u.username}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[13px] font-medium" style={{ color: 'var(--text-primary)' }}>{u.username}</p>
+                        {u.banned && <Badge color="red">Banned</Badge>}
+                        {u.is_super_admin && <Badge color="purple">Super Admin</Badge>}
+                      </div>
                       <p className="text-[11px]" style={{ color: 'var(--text-hint)' }}>{u.email} · {u.roles?.join(', ') || 'No roles'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {u.is_super_admin && <Badge color="purple">Super Admin</Badge>}
                     {u.two_factor_enabled && <Badge color="green">2FA</Badge>}
                     {u.id !== profile.id && (
                       <>
                         <button onClick={() => handleImpersonate(u)} className="p-1 transition-colors" style={{ color: 'var(--text-hint)' }} title="Impersonate"
                           onMouseEnter={e => e.currentTarget.style.color = '#E07050'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-hint)'}>
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-hint)'}
+                        >
                           <Eye size={14} strokeWidth={1.5} />
                         </button>
-                        <button onClick={() => handleToggleSuperAdmin(u)} className="text-[11px] transition-colors" style={{ color: 'var(--text-hint)' }}
+                        <button onClick={() => handleToggleSuperAdmin(u)} className="text-[11px] transition-colors px-2 py-1" style={{ color: 'var(--text-hint)' }} title="Toggle Super Admin"
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--text-accent)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-hint)'}>
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-hint)'}
+                        >
                           {u.is_super_admin ? 'Demote' : 'Promote'}
+                        </button>
+                        <button onClick={() => handleBan(u, !u.banned)} className="p-1 transition-colors" style={{ color: u.banned ? 'var(--status-done)' : 'var(--text-hint)' }} title={u.banned ? 'Unban User' : 'Ban User'}
+                          onMouseEnter={e => e.currentTarget.style.color = u.banned ? '#2ECC71' : '#F39C12'}
+                          onMouseLeave={e => e.currentTarget.style.color = u.banned ? 'var(--status-done)' : 'var(--text-hint)'}
+                        >
+                          {u.banned ? <ShieldOff size={14} strokeWidth={1.5} /> : <Ban size={14} strokeWidth={1.5} />}
+                        </button>
+                        <button onClick={() => confirmDelete(u)} className="p-1 transition-colors" style={{ color: 'var(--text-hint)' }} title="Delete User"
+                          onMouseEnter={e => e.currentTarget.style.color = '#E74C3C'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-hint)'}
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
                         </button>
                       </>
                     )}
@@ -230,6 +306,21 @@ export default function AdminPanel() {
 
       <Modal isOpen={showCreateUser} onClose={() => setShowCreateUser(false)} title="Invite New User">
         <CreateUserModal onClose={() => setShowCreateUser(false)} />
+      </Modal>
+
+      <Modal isOpen={showDeleteConfirm} onClose={() => setShowDeleteConfirm(false)} title="Delete User">
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg" style={{ background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)' }}>
+            <p className="text-[13px]" style={{ color: '#E74C3C' }}>
+              Are you sure you want to permanently delete <strong>{userToDelete?.username}</strong>?<br />
+              This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button onClick={handleDelete} style={{ background: '#E74C3C' }}>Delete Permanently</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

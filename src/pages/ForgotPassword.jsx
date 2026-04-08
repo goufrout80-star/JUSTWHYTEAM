@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { APP_NAME, SENDER_EMAIL } from '../lib/constants';
+import { APP_NAME, SENDER_EMAIL, APP_URL } from '../lib/email';
+import { sendPasswordResetEmail } from '../lib/email';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import ParticleBackground from '../components/ui/ParticleBackground';
@@ -54,11 +55,17 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
+      // Use Supabase to generate reset token (but we'll send our own email via Resend)
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${APP_URL}/reset-password`,
       });
 
       if (error) throw error;
+
+      // Also send our custom styled email via Resend (if configured)
+      // This sends a better looking email alongside Supabase's default
+      const resetLink = `${APP_URL}/reset-password`;
+      await sendPasswordResetEmail({ toEmail: email, resetLink });
 
       updateRateLimit();
       setSuccess(true);
@@ -191,7 +198,7 @@ export default function ForgotPassword() {
 
         <div className="mt-6 text-center">
           <p className="text-[11px]" style={{ color: 'var(--text-hint)' }}>
-            Need help? Contact <a href={`mailto:${SENDER_EMAIL}`} style={{ color: 'var(--text-accent)' }}>{SENDER_EMAIL}</a>
+            Need help? Contact <a href={`mailto:support@justwhyus.com`} style={{ color: 'var(--text-accent)' }}>support@justwhyus.com</a>
           </p>
         </div>
       </div>
