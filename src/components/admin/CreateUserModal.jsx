@@ -28,16 +28,16 @@ export default function CreateUserModal({ onClose }) {
     try {
       const { data, error: err } = await supabase
         .from('invite_tokens')
-        .insert({ created_by: profile.id, email: email || null })
+        .insert({ created_by: profile.id })
         .select()
         .single();
       if (err) throw err;
       const base = window.location.origin;
       const link = `${base}/register/${data.token}`;
       setInviteLink(link);
-      await logActivity(profile.id, null, 'invite_user', { username_hint: username, email: email || null });
+      await logActivity(profile.id, null, 'invite_user', { username_hint: username, target_email: email || null });
       
-      // Auto-send email if provided
+      // Auto-send email if provided (email not stored in DB, just used for sending)
       if (email) {
         await handleSendEmail(link);
       }
